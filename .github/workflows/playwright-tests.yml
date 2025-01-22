@@ -1,0 +1,58 @@
+name: Sauce Demo Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Enter Sauce Demo Username'
+        required: true
+      password:
+        description: 'Enter Sauce Demo Password'
+        required: true
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4  
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Install MSTest Framework
+      run: |
+        dotnet add package MSTest.TestAdapter
+        dotnet add package MSTest.TestFramework
+
+    - name: Install Playwright .NET package
+      run: dotnet add package Microsoft.Playwright
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Build Project
+      run: dotnet build --configuration Release
+
+    - name: Install Playwright Dependencies
+      run: |
+        dotnet tool install --global Microsoft.Playwright.CLI
+        playwright install
+
+    - name: Run Playwright Tests with MSTest
+      env:
+        SAUCE_USERNAME: ${{ github.event.inputs.username }}
+        SAUCE_PASSWORD: ${{ github.event.inputs.password }}
+      run: |
+        echo "Running tests with provided credentials..."
+        dotnet test --configuration Release --logger "trx;LogFileName=test-results.trx"
+
+    - name: Upload Test Results (if failed)
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: Playwright-Test-Results
+        path: bin/Release/net8.0/TestResults/test-results.trx

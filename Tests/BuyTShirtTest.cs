@@ -21,13 +21,21 @@ namespace SauceDemoTest.Tests
         private OrderConfirmationPage _orderConfirmationPage;
         private LogoutPage _logoutPage;
 
-        private const string Username = "standard_user";
-        private const string Password = "secret_sauce";
+        private string Username;
+        private string Password;
         private const string ProductName = "Sauce Labs Bolt T-Shirt";
 
         [TestInitialize]
         public async Task Setup()
         {
+            Username = Environment.GetEnvironmentVariable("SAUCE_USERNAME");
+            Password = Environment.GetEnvironmentVariable("SAUCE_PASSWORD");
+
+            if (string.IsNullOrEmpty(Username) || string.IsNullOrEmpty(Password))
+            {
+                Assert.Fail("Missing credentials! Please set SAUCE_USERNAME and SAUCE_PASSWORD.");
+            }
+
             _playwright = await Playwright.CreateAsync();
             _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
             _context = await _browser.NewContextAsync();
@@ -47,7 +55,7 @@ namespace SauceDemoTest.Tests
         public async Task BuyTShirt()
         {
             await _loginPage!.GoToAsync();
-            await _loginPage.LoginAsync(Username, Password);
+            await _loginPage.LoginAsync(Username!, Password!);
             Assert.IsTrue(await _productsPage!.IsLoaded(), "Products page did not load.");
 
             await _productsPage.OpenProductAsync(ProductName);
@@ -61,7 +69,7 @@ namespace SauceDemoTest.Tests
             await _cartPage.Checkout();
             Assert.IsTrue(await _checkoutPage!.IsLoaded(), "Checkout page did not load.");
 
-            await _checkoutPage.FillCheckoutInfo("John", "Doe", "12345");
+            await _checkoutPage.FillCheckoutInfo("Sheldon", "Plankton", "12345");
             await _checkoutPage.Continue();
 
             Assert.IsTrue(await _checkoutOverviewPage!.IsLoaded(), "Checkout overview page did not load.");
@@ -70,10 +78,7 @@ namespace SauceDemoTest.Tests
             await _checkoutOverviewPage.FinishOrder();
             Assert.IsTrue(await _orderConfirmationPage!.IsOrderSuccessful(), "Order confirmation was not displayed.");
 
-            // Step 18: Logout from the application
             await _logoutPage!.LogoutAsync();
-
-            // Step 19: Verify logout success and redirection to login page
             Assert.IsTrue(await _logoutPage.IsLoggedOutAsync(), "Logout failed; login page not displayed.");
         }
 
